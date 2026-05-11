@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Mushroom Farm 3D Planner</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',sans-serif;overflow:hidden;background:#1a1a2e;color:#eee}
+#toolbar{position:fixed;top:0;left:0;right:0;height:48px;background:#0f0f23;display:flex;align-items:center;padding:0 10px;z-index:100;gap:6px;flex-wrap:wrap}
+#toolbar button,#toolbar label{background:#1a1a3e;color:#8cf;border:1px solid #334;padding:5px 10px;border-radius:4px;cursor:pointer;font-size:13px}
+#toolbar button:hover,#toolbar label:hover{background:#2a2a5e}
+#toolbar .spacer{flex:1}
+#toolbar .label{display:flex;align-items:center;gap:4px}
+#toolbar .label input{accent-color:#8cf}
+#toolbar select{background:#1a1a3e;color:#8cf;border:1px solid #334;padding:3px 6px;border-radius:4px;font-size:13px}
+#left{position:fixed;top:48px;left:0;width:220px;height:calc(100vh - 48px);background:#111133;overflow-y:auto;padding:8px;z-index:90;transition:transform .3s}
+#left.collapsed{transform:translateX(-220px)}
+#left h3{font-size:13px;color:#8cf;margin-bottom:6px}
+.lib-item{display:flex;align-items:center;gap:6px;padding:6px 8px;margin-bottom:4px;background:#1a1a3e;border-radius:4px;cursor:pointer;font-size:13px}
+.lib-item:hover{background:#2a2a5e}
+.lib-item i{width:18px;text-align:center;color:#8cf}
+#right{position:fixed;top:48px;right:0;width:280px;height:calc(100vh - 48px);background:#111133;overflow-y:auto;padding:8px;z-index:90}
+#right h3{font-size:13px;color:#8cf;margin-bottom:6px}
+#info{position:fixed;bottom:0;left:0;right:0;height:60px;background:#0f0f23;padding:6px 12px;font-size:12px;line-height:1.4;overflow:hidden;z-index:90;color:#aaa}
+#info summary{cursor:pointer;color:#8cf}
+#info pre{white-space:pre-wrap;word-break:break-word}
+canvas{display:block}
+@media(max-width:768px){
+ #left,#right{width:180px}
+ #toolbar button{padding:4px 6px;font-size:11px}
+}
+</style>
+</head>
+<body>
+<div id="toolbar">
+  <button id="btnUndo"><i class="fa-solid fa-undo"></i></button>
+  <button id="btnRedo"><i class="fa-solid fa-redo"></i></button>
+  <button id="btnAddRoom"><i class="fa-solid fa-plus"></i> Add Room</button>
+  <button id="btnAddTray"><i class="fa-solid fa-box"></i> Add Tray</button>
+  <button id="btnReset"><i class="fa-solid fa-rotate"></i> Reset</button>
+  <button id="btnExport"><i class="fa-solid fa-download"></i> Export</button>
+  <button id="btnImport"><i class="fa-solid fa-upload"></i> Import</button>
+  <button id="btnGLTF"><i class="fa-solid fa-file-3d"></i> Export GLTF</button>
+  <span class="spacer"></span>
+  <label class="label"><input type="checkbox" id="chkSnap" checked> Snap</label>
+  <select id="gridSize"><option value="0.5">0.5 m</option><option value="1" selected>1 m</option><option value="2">2 m</option></select>
+  <button id="btnTop"><i class="fa-solid fa-arrows-up-to-line"></i> Top</button>
+  <button id="btn3D"><i class="fa-solid fa-cube"></i> 3D</button>
+  <button id="btnToggleSidebar"><i class="fa-solid fa-bars"></i></button>
+</div>
+<div id="left">
+  <h3>Library – click to add</h3>
+  <div class="lib-item" data-lib="shelf"><i class="fa-solid fa-layer-group"></i> Shelf</div>
+  <div class="lib-item" data-lib="table"><i class="fa-solid fa-table"></i> Table</div>
+  <div class="lib-item" data-lib="humidifier"><i class="fa-solid fa-droplet"></i> Humidifier</div>
+  <div class="lib-item" data-lib="fan"><i class="fa-solid fa-wind"></i> Fan</div>
+  <div class="lib-item" data-lib="compost"><i class="fa-solid fa-seedling"></i> Compost Pile</div>
+  <div class="lib-item" data-lib="bag"><i class="fa-solid fa-box"></i> Bag/Block</div>
+  <div class="lib-item" data-lib="door"><i class="fa-solid fa-door-open"></i> Door</div>
+  <div class="lib-item" data-lib="window"><i class="fa-solid fa-window-maximize"></i> Window</div>
+  <div class="lib-item" data-lib="light"><i class="fa-solid fa-lightbulb"></i> Light</div>
+  <div class="lib-item" data-lib="tray"><i class="fa-solid fa-border-all"></i> Tray (3‑sec)</div>
+  <hr style="border-color:#334;margin:8px 0">
+  <h3>Rooms – click to add</h3>
+  <div class="lib-item" data-room="compost"><i class="fa-solid fa-leaf" style="color:#4caf50"></i> Compost Hall (5×5)</div>
+  <div class="lib-item" data-room="lab"><i class="fa-solid fa-flask" style="color:#ffeb3b"></i> Lab (4×4)</div>
+  <div class="lib-item" data-room="incubation"><i class="fa-solid fa-dna" style="color:#42a5f5"></i> Incubation (3×3)</div>
+  <div class="lib-item" data-room="fruiting"><i class="fa-solid fa-mushroom" style="color:#e53935"></i> Fruiting Room (3×4)</div>
+</div>
+<div id="right">
+  <h3>Inspector</h3>
+  <div id="guiContainer"></div>
+  <p id="noSelect" style="color:#666;font-size:13px;margin-top:20px">Select an object to edit its properties.</p>
+</div>
+<div id="info">
+  <details>
+    <summary style="cursor:pointer">Mushroom Farm Layout Planner – Instructions & Best Practices</summary>
+    <pre>• Keep the Compost Hall central for easy access.
+• Lab should be adjacent to Compost for quick spawn transfers.
+• Incubation rooms need stable 24‑26 °C, 60‑70 % RH.
+• Fruiting rooms: 18‑22 °C, 85‑95 % RH, indirect light.
+• Maintain a one‑way workflow: Compost → Lab → Incubation → Fruiting.
+• Use doors/windows to control airflow and contamination.
+• Place fans for gentle air circulation; avoid direct drafts on fruiting.
+• Keep the floor grid to 1 m for accurate spacing and cleaning paths.
+• Each room contains 5 trays; every tray is divided into 3 sections.</pre>
+  </details>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.157.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.157.0/examples/jsm/"
+  }
+}
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dat-gui/0.7.9/dat.gui.min.js"></script>
+<script type="module">
+import * as THREE from 'three';
+import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
+import {CSS2DRenderer,CSS2DObject} from 'three/addons/renderers/CSS2DRenderer.js';
+import {GLTFExporter} from 'three/addons/exporters/GLTFExporter.js';
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x111122);
+scene.fog = new THREE.FogExp2(0x111133, 0.012);
+
+const renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setPixelRatio(window.devicePixelRatio);
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+document.body.appendChild(renderer.domElement);
+
+const labelRenderer = new CSS2DRenderer();
+labelRenderer.setSize(window.innerWidth, window.innerHeight);
+labelRenderer.domElement.style.position = 'absolute';
+labelRenderer.domElement.style.top = '0';
+document.body.appendChild(labelRenderer.domElement);
+
+// Lights
+scene.add(new THREE.AmbientLight(0x404060, 0.6));
+const dirLight = new THREE.DirectionalLight(0xffffff, 1.2);
+dirLight.position.set(10,15,10);
+dirLight.castShadow = true;
+dirLight.shadow.mapSize.set(2048,2048);
+dirLight.shadow.camera.near = 0.5;
+dirLight.shadow.camera.far = 50;
+dirLight.shadow.camera.left = -30;
+dirLight.shadow.camera.right = 30;
+dirLight.shadow.camera.top = 30;
+dirLight.shadow.camera.bottom = -30;
+scene.add(dirLight);
+scene.add(new THREE.HemisphereLight(0x88ccff, 0x444422, 0.8));
+
+// Cameras
+const aspect = window.innerWidth / window.innerHeight;
+const perspCam = new THREE.PerspectiveCamera(50, aspect, 0.1, 500);
+perspCam.position.set(12,12,12);
+const orthoCam = new THREE.OrthographicCamera(-15,15,15,-15,0.1,500);
+orthoCam.position.set(0,30,0);
+orthoCam.lookAt(0,0,0);
+let activeCam = perspCam;
+
+const controls = new OrbitControls(activeCam, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.1;
+controls.target.set(0,0,0);
+
+// Grid
+const grid = new THREE.GridHelper(40,40,0x444466,0x222244);
+scene.add(grid);
+
+// Ground plane for raycasting
+const groundGeo = new THREE.PlaneGeometry(100,100);
+const groundMat = new THREE.MeshBasicMaterial({visible:false});
+const ground = new THREE.Mesh(groundGeo, groundMat);
+ground.rotation.x = -Math.PI/2;
+ground.name = 'ground';
+scene.add(ground);
+
+// Helpers
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+let dragObj = null;
+let offset = new THREE.Vector3();
+let snapEnabled = true;
+let gridSize = 1;
+
+// Object data store
+const objects = new Map();
+const history = [];
+let historyIdx = -1;
+
+// Room defaults
+const roomDefaults = {
+  compost:  {w:5,d:5,h:3,color:0x4caf50,label:'Compost Hall'},
+  lab:      {w:4,d:4,h:3,color:0xffeb3b,label:'Lab'},
+  incubation:{w:3,d:3,h:2.5,color:0x42a5f5,label:'Incubation'},
+  fruiting: {w:3,d:4,h:2.5,color:0xe53935,label:'Fruiting Room'}
+};
+
+const materialPresets = {
+  'Default': null,
+  'Wood': 0x8d6e63,
+  'Concrete': 0x9e9e9e,
+  'Grass': 0x66bb6a,
+  'Metal': 0x78909c,
+  'Custom': 0xffffff
+};
+
+function createLabel(text, width, height){
+  const div = document.createElement('div');
+  div.className = 'label';
+  div.textContent = text;
+  div.style.cssText = `background:rgba(0,0,0,.6);color:#fff;padding:2px 4px;border-radius:3px;font-size:11px;white-space:nowrap;transform:translateX(-50%)`;
+  const obj = new CSS2DObject(div);
+  obj.position.set(0, height/2 + 0.2, 0);
+  return {div, obj};
+}
+
+function createTray(w,d,h){
+  const group = new THREE.Group();
+  const baseGeo = new THREE.BoxGeometry(w, h, d);
+  const baseMat = new THREE.MeshPhongMaterial({color:0xbcaaa4, transparent:true, opacity:0.6});
+  const base = new THREE.Mesh(baseGeo, baseMat);
+  base.castShadow = true; base.receiveShadow = true;
+  group.add(base);
+  const divW = 0.05;
+  const divGeo = new THREE.BoxGeometry(divW, h, d);
+  const divMat = new THREE.MeshPhongMaterial({color:0x8d6e63});
+  const div1 = new THREE.Mesh(divGeo, divMat);
+  div1.position.set(-w/2 + w/3, 0, 0);
+  div1.castShadow = true;
+  const div2 = div1.clone();
+  div2.position.set(-w/2 + 2*w/3, 0, 0);
+  group.add(div1, div2);
+  group.userData.libType = 'tray';
+  group.userData.w = w; group.userData.d = d; group.userData.h = h;
+  return group;
+}
+
+function addRoom(type, x=0, y=0, z=0){
+  const def = roomDefaults[type];
+  if(!def) return;
+  const {w,d,h,color,label} = def;
+  const geo = new THREE.BoxGeometry(w, h, d);
+  const mat = new THREE.MeshPhongMaterial({color, transparent:true, opacity:0.5, side:THREE.DoubleSide});
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.position.set(x, h/2, z);
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  mesh.name = label;
+  const wireGeo = new THREE.BoxGeometry(w, h, d);
+  const wireMat = new THREE.MeshBasicMaterial({color:0x00ffff, wireframe:true, transparent:true, opacity:0.3});
+  const wire = new THREE.Mesh(wireGeo, wireMat);
+  wire.position.copy(mesh.position);
+  const {obj:labelObj} = createLabel(label, w, h);
+  const group = new THREE.Group();
+  group.add(mesh, wire, labelObj);
+  group.userData = {type:'room', roomType:type, w, d, h, baseColor:color, label};
+  scene.add(group);
+  objects.set(group.uuid, group.userData);
+
+  // 5 trays per room
+  const trayGroup = new THREE.Group();
+  trayGroup.userData = {type:'trayGroup', parentRoom:group.uuid};
+  const trayW = w * 0.8 / 5;
+  const trayD = d * 0.8;
+  const trayH = h * 0.2;
+  const startX = x - w/2 + trayW/2 + 0.1;
+  const startZ = z - d/2 + trayD/2 + 0.1;
+  for(let i=0;i<5;i++){
+    const tray = createTray(trayW, trayD, trayH);
+    tray.position.set(startX + i*(trayW+0.05), trayH/2, startZ);
+    tray.castShadow = true;
+    tray.receiveShadow = true;
+    trayGroup.add(tray);
+    objects.set(tray.uuid, {type:'tray', libType:'tray', w:trayW, d:trayD, h:trayH, parentRoom:group.uuid});
+  }
+  group.add(trayGroup);
+  selectObject(group);
+  pushHistory({action:'add', uuid:group.uuid});
+  return group;
+}
+
+function addLibraryItem(type){
+  let mesh, w=1, d=1, h=1, color=0x888888, name=type;
+  switch(type){
+    case 'shelf':
+      w=2; d=1; h=3; color=0x8d6e63; name='Shelf';
+      const g = new THREE.Group();
+      for(let i=0;i<3;i++){
+        const b = new THREE.Mesh(new THREE.BoxGeometry(w,0.2,d), new THREE.MeshPhongMaterial({color:0x5d4037}));
+        b.position.set(0, i*1.1+0.1, 0);
+        g.add(b);
+      }
+      mesh = g; break;
+    case 'table':
+      w=1.5; d=1; h=0.8; color=0x795548; name='Table';
+      const top = new THREE.Mesh(new THREE.BoxGeometry(w,0.1,d), new THREE.MeshPhongMaterial({color:0x6d4c41}));
+      top.position.y = h/2;
+      const leg = new THREE.Mesh(new THREE.BoxGeometry(0.1, h-0.1, 0.1), new THREE.MeshPhongMaterial({color:0x5d4037}));
+      leg.position.set(-w/2+0.15, (h-0.1)/2, -d/2+0.15);
+      const leg2 = leg.clone(); leg2.position.set(w/2-0.15, (h-0.1)/2, -d/2+0.15);
+      const leg3 = leg.clone(); leg3.position.set(-w/2+0.15, (h-0.1)/2, d/2-0.15);
+      const leg4 = leg.clone(); leg4.position.set(w/2-0.15, (h-0.1)/2, d/2-0.15);
+      mesh = new THREE.Group(); mesh.add(top,leg,leg2,leg3,leg4); break;
+    case 'humidifier':
+      w=0.6; d=0.6; h=0.6; color=0x29b6f6; name='Humidifier';
+      mesh = new THREE.Mesh(new THREE.CylinderGeometry(0.25,0.25,0.6,16), new THREE.MeshPhongMaterial({color})); break;
+    case 'fan':
+      w=0.8; d=0.8; h=0.2; color=0x90a4ae; name='Fan';
+      mesh = new THREE.Mesh(new THREE.CircleGeometry(0.4,16), new THREE.MeshPhongMaterial({color, side:THREE.DoubleSide})); break;
+    case 'compost':
+      w=1.5; d=1.5; h=1; color=0x6d4c41; name='Compost Pile';
+      mesh = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), new THREE.MeshPhongMaterial({color})); break;
+    case 'bag':
+      w=0.5; d=0.5; h=0.7; color=0x8bc34a; name='Bag/Block';
+      mesh = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), new THREE.MeshPhongMaterial({color})); break;
+    case 'door':
+      w=1; d=0.1; h=2.2; color=0x795548; name='Door';
+      mesh = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), new THREE.MeshPhongMaterial({color})); break;
+    case 'window':
+      w=1.2; d=0.1; h=1.2; color=0xbbdefb; name='Window';
+      const winMat = new THREE.MeshPhongMaterial({color:0xbbdefb, transparent:true, opacity:0.3});
+      mesh = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), winMat); break;
+    case 'light':
+      w=0.2; d=0.2; h=0.2; color=0xffff00; name='Light';
+      const light = new THREE.PointLight(0xffffaa, 1.5, 10);
+      light.position.set(0,2,0);
+      mesh = light; break;
+    case 'tray':
+      mesh = createTray(0.6,0.4,0.15);
+      mesh.userData = {type:'tray', libType:'tray', w:0.6, d:0.4, h:0.15};
+      name='Tray'; break;
+    default: return;
+  }
+  mesh.position.set(0, h/2 || 0.5, 0);
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  mesh.name = name;
+  const grp = new THREE.Group();
+  grp.add(mesh);
+  grp.userData = {type:'library', libType:type, w, d:(d||w), h:(h||1)};
+  scene.add(grp);
+  objects.set(grp.uuid, grp.userData);
+  selectObject(grp);
+  pushHistory({action:'add', uuid:grp.uuid});
+}
+
+// Default layout
+addRoom('compost', 0,0,0);
+addRoom('lab', 6,0,0);
+addRoom('incubation', 0,0,6);
+addRoom('fruiting', 6,0,6);
+addRoom('fruiting', 10,0,6);
+addRoom('room', 14,0,0);
+
+// Selection & transform
+let selected = null;
+let multiSelect = [];
+const guiContainer = document.getElementById('guiContainer');
+const noSelect = document.getElementById('noSelect');
+let gui, folder;
+
+function selectObject(obj){
+  if(selected) selected.material && (selected.material.emissive.setHex(0x000000));
+  selected = obj;
+  multiSelect = obj ? [obj] : [];
+  if(!obj){ noSelect.style.display=''; guiContainer.innerHTML=''; return; }
+  obj.material && (obj.material.emissive.setHex(0x222222));
+  noSelect.style.display='none';
+  buildGUI(obj);
+}
+
+function buildGUI(obj){
+  guiContainer.innerHTML = '';
+  gui = new DAT.GUI({container:guiContainer, width:260});
+  folder = gui.addFolder('Properties');
+  const pos = folder.addFolder('Position');
+  pos.add(obj.position,'x',-20,20,0.1).name('X').listen();
+  pos.add(obj.position,'y',-2,20,0.1).name('Y').listen();
+  pos.add(obj.position,'z',-20,20,0.1).name('Z').listen();
+  const rot = folder.addFolder('Rotation (deg)');
+  const rad = obj.rotation;
+  rot.add({x:THREE.MathUtils.radToDeg(rad.x)},'x',-180,180,1).onChange(v=>rad.x=THREE.MathUtils.degToRad(v)).name('X');
+  rot.add({y:THREE.MathUtils.radToDeg(rad.y)},'y',-180,180,1).onChange(v=>rad.y=THREE.MathUtils.degToRad(v)).name('Y');
+  rot.add({z:THREE.MathUtils.radToDeg(rad.z)},'z',-180,180,1).onChange(v=>rad.z=THREE.MathUtils.degToRad(v)).name('Z');
+  const scl = folder.addFolder('Scale');
+  scl.add(obj.scale,'x',0.1,10,0.1).name('X').listen();
+  scl.add(obj.scale,'y',0.1,10,0.1).name('Y').listen();
+  scl.add(obj.scale,'z',0.1,10,0.1).name('Z').listen();
+
+  if(obj.userData){
+    const ud = obj.userData;
+    if(ud.type==='room'){
+      const rm = folder.addFolder('Room Size');
+      rm.add({w:ud.w},'w',0.5,20,0.1).name('Width').onChange(v=>resizeRoom(obj,v,'w'));
+      rm.add({d:ud.d},'d',0.5,20,0.1).name('Depth').onChange(v=>resizeRoom(obj,v,'d'));
+      rm.add({h:ud.h},'h',0.5,15,0.1).name('Height').onChange(v=>resizeRoom(obj,v,'h'));
+      rm.open();
+      const mat = folder.addFolder('Material');
+      const presetNames = Object.keys(materialPresets);
+      mat.add({preset:'Default'},'preset',presetNames).name('Preset').onChange(v=>applyPreset(obj,v));
+      mat.open();
+    }
+    if(ud.libType==='tray' || ud.type==='tray'){
+      const tw = folder.addFolder('Tray Size');
+      tw.add({w:ud.w},'w',0.2,5,0.05).name('Width').onChange(v=>resizeTray(obj,v,'w'));
+      tw.add({d:ud.d},'d',0.2,5,0.05).name('Depth').onChange(v=>resizeTray(obj,v,'d'));
+      tw.add({h:ud.h},'h',0.2,2,0.05).name('Height').onChange(v=>resizeTray(obj,v,'h'));
+      tw.open();
+    }
+  }
+  folder.open();
+}
+
+function resizeRoom(group, value, axis){
+  const ud = group.userData;
+  if(!ud) return;
+  const prev = axis==='w'?ud.w:axis==='d'?ud.d:ud.h;
+  const idx = axis==='w'?0:axis==='d'?2:1;
+  group.scale.setComponent(idx, group.scale.getComponent(idx) * (value/prev));
+  ud[axis] = value;
+  const trayGroup = group.children.find(c=>c.userData&&c.userData.type==='trayGroup');
+  if(trayGroup){
+    const tw = value * 0.8 / 5;
+    const td = (axis==='d'?value:ud.d) * 0.8;
+    const th = (axis==='h'?value:ud.h) * 0.2;
+    const px = axis==='w'?group.position.x:ud.w;
+    const pz = axis==='d'?group.position.z:ud.d;
+    const startX = group.position.x - value/2 + tw/2 + 0.1;
+    const startZ = group.position.z - (axis==='d'?value:ud.d)/2 + td/2 + 0.1;
+    trayGroup.children.forEach((t,i)=>{
+      t.scale.setComponent(0, tw/t.userData.w);
+      t.scale.setComponent(2, td/t.userData.d);
+      t.scale.setComponent(1, th/t.userData.h);
+      t.position.set(startX + i*(tw+0.05), th/2, startZ);
+      t.userData.w = tw; t.userData.d = td; t.userData.h = th;
+    });
+  }
+  pushHistory({action:'resize', uuid:group.uuid, axis, from:prev, to:value});
+}
+
+function resizeTray(group, value, axis){
+  const ud = group.userData;
+  if(!ud) return;
+  const prev = axis==='w'?ud.w:axis==='d'?ud.d:ud.h;
+  const idx = axis==='w'?0:axis==='d'?2:1;
+  group.scale.setComponent(idx, group.scale.getComponent(idx) * (value/prev));
+  ud[axis] = value;
+  pushHistory({action:'resize', uuid:group.uuid, axis, from:prev, to:value});
+}
+
+function applyPreset(group, name){
+  const color = materialPresets[name];
+  if(color===null) return;
+  group.traverse(c=>{ if(c.isMesh && c.material) c.material.color.setHex(color); });
+  pushHistory({action:'material', uuid:group.uuid, preset:name});
+}
+
+function pushHistory(entry){
+  historyIdx++;
+  history.length = historyIdx;
+  history.push(entry);
+}
+function undo(){
+  if(historyIdx<0) return;
+  const entry = history[historyIdx--];
+  const obj = scene.getObjectByProperty('uuid', entry.uuid);
+  if(!obj) return;
+  if(entry.action==='add'){ scene.remove(obj); objects.delete(entry.uuid); }
+  else if(entry.action==='resize'){
+    const ud = obj.userData;
+    if(ud && ud.type==='room') resizeRoom(obj, entry.from, entry.axis);
+    else if(ud && (ud.type==='tray'||ud.libType==='tray')) resizeTray(obj, entry.from, entry.axis);
+  } else if(entry.action==='material') applyPreset(obj, entry.preset);
+}
+function redo(){
+  if(historyIdx>=history.length-1) return;
+  const entry = history[++historyIdx];
+  const obj = scene.getObjectByProperty('uuid', entry.uuid);
+  if(!obj) return;
+  if(entry.action==='resize'){
+    const ud = obj.userData;
+    if(ud && ud.type==='room') resizeRoom(obj, entry.to, entry.axis);
+    else if(ud && (ud.type==='tray'||ud.libType==='tray')) resizeTray(obj, entry.to, entry.axis);
+  } else if(entry.action==='material') applyPreset(obj, entry.preset);
+}
+
+function getIntersect(pos){
+  mouse.x = (pos.clientX / window.innerWidth)*2 -1;
+  mouse.y = -(pos.clientY / window.innerHeight)*2 +1;
+  raycaster.setFromCamera(mouse, activeCam);
+  return raycaster.intersectObjects(scene.children.filter(o=>o.userData&&o.userData.type), true);
+}
+function getGroundPos(event){
+  mouse.x = (event.clientX / window.innerWidth)*2 -1;
+  mouse.y = -(event.clientY / window.innerHeight)*2 +1;
+  raycaster.setFromCamera(mouse, activeCam);
+  const hit = raycaster.intersectObject(ground);
+  if(hit.length) return hit[0].point;
+  return null;
+}
+
+renderer.domElement.addEventListener('pointerdown', ev=>{
+  if(ev.button!==0) return;
+  const hits = getIntersect(ev);
+  if(hits.length){
+    let obj = hits[0].object;
+    while(obj.parent && obj.parent!==scene) obj = obj.parent;
+    if(ev.shiftKey){
+      if(multiSelect.includes(obj)){ multiSelect=multiSelect.filter(o=>o!==obj); obj.material&&obj.material.emissive.setHex(0x000000); }
+      else { multiSelect.push(obj); obj.material&&obj.material.emissive.setHex(0x222222); }
+      selected = multiSelect[0];
+      noSelect.style.display = selected?'none':'';
+      if(selected) buildGUI(selected);
+    } else selectObject(obj);
+    const gp = getGroundPos(ev);
+    if(gp) offset.copy((selected||obj).position).sub(gp);
+    dragObj = obj;
+  } else if(!ev.shiftKey) selectObject(null);
+});
+
+window.addEventListener('pointermove', ev=>{
+  if(!dragObj) return;
+  const gp = getGroundPos(ev);
+  if(!gp) return;
+  gp.add(offset);
+  if(snapEnabled){
+    const gs = parseFloat(gridSize);
+    gp.x = Math.round(gp.x/gs)*gs;
+    gp.z = Math.round(gp.z/gs)*gs;
+    gp.y = Math.round(gp.y/gs)*gs;
+  }
+  dragObj.position.copy(gp);
+  multiSelect.forEach(o=>{ if(o!==dragObj) o.position.copy(gp); });
+  if(folder) folder.controllers.forEach(c=>c.updateDisplay());
+});
+
+window.addEventListener('pointerup', ()=>{ dragObj = null; });
+
+document.getElementById('btnUndo').onclick = undo;
+document.getElementById('btnRedo').onclick = redo;
+document.getElementById('btnAddRoom').onclick = ()=>{
+  const type = prompt('Room type? compost / lab / incubation / fruiting','compost');
+  if(roomDefaults[type]) addRoom(type);
+};
+document.getElementById('btnAddTray').onclick = ()=> addLibraryItem('tray');
+document.getElementById('btnReset').onclick = ()=>{
+  scene.traverse(c=>{ if(c.userData&&c.userData.type) scene.remove(c); });
+  objects.clear(); multiSelect=[]; selected=null;
+  addRoom('compost',0,0,0);
+  addRoom('lab',6,0,0);
+  addRoom('incubation',0,0,6);
+  addRoom('fruiting',6,0,6);
+  addRoom('fruiting',10,0,6);
+  addRoom('room',14,0,0);
+  pushHistory({action:'reset'});
+};
+document.getElementById('btnExport').onclick = ()=>{
+  const data = [];
+  objects.forEach((v,uuid)=>{
+    const obj = scene.getObjectByProperty('uuid',uuid);
+    if(!obj) return;
+    data.push({ uuid, userData:{...v}, position:obj.position.toArray(), rotation:obj.rotation.toArray(), scale:obj.scale.toArray() });
+  });
+  localStorage.setItem('farmLayout', JSON.stringify(data));
+  alert('Layout saved to localStorage');
+};
+document.getElementById('btnImport').onclick = ()=>{
+  const raw = localStorage.getItem('farmLayout');
+  if(!raw) return alert('No saved layout');
+  const arr = JSON.parse(raw);
+  scene.traverse(c=>{ if(c.userData&&c.userData.type) scene.remove(c); });
+  objects.clear(); multiSelect=[]; selected=null;
+  arr.forEach(item=>{
+    const grp = new THREE.Group();
+    grp.uuid = item.uuid;
+    grp.userData = item.userData;
+    grp.position.fromArray(item.position);
+    grp.rotation.fromArray(item.rotation);
+    grp.scale.fromArray(item.scale);
+    if(item.userData.type==='room'){
+      const {w,d,h,roomType} = item.userData;
+      const def = roomDefaults[roomType];
+      const geo = new THREE.BoxGeometry(w, h, d);
+      const mat = new THREE.MeshPhongMaterial({color:def.color, transparent:true, opacity:0.5, side:THREE.DoubleSide});
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.castShadow = true; mesh.receiveShadow = true;
+      const wire = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), new THREE.MeshBasicMaterial({color:0x00ffff, wireframe:true, transparent:true, opacity:0.3}));
+      const {obj:labelObj} = createLabel(item.userData.label, w, h);
+      grp.add(mesh, wire, labelObj);
+      const trayGroup = new THREE.Group();
+      trayGroup.userData = {type:'trayGroup', parentRoom:grp.uuid};
+      const trayW = w * 0.8 / 5;
+      const trayD = d * 0.8;
+      const trayH = h * 0.2;
+      const startX = grp.position.x - w/2 + trayW/2 + 0.1;
+      const startZ = grp.position.z - d/2 + trayD/2 + 0.1;
+      for(let i=0;i<5;i++){
+        const tray = createTray(trayW, trayD, trayH);
+        tray.position.set(startX + i*(trayW+0.05), trayH/2, startZ);
+        tray.castShadow = true; tray.receiveShadow = true;
+        trayGroup.add(tray);
+        objects.set(tray.uuid, {type:'tray', libType:'tray', w:trayW, d:trayD, h:trayH, parentRoom:grp.uuid});
+      }
+      grp.add(trayGroup);
+    } else {
+      const ud = item.userData;
+      const geo = new THREE.BoxGeometry(ud.w||1, ud.h||1, ud.d||1);
+      const mat = new THREE.MeshPhongMaterial({color:0x888888});
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.castShadow = true;
+      grp.add(mesh);
+    }
+    scene.add(grp);
+    objects.set(grp.uuid, grp.userData);
+  });
+};
+document.getElementById('btnGLTF').onclick = ()=>{
+  const exporter = new GLTFExporter();
+  const meshes = [];
+  scene.traverse(c=>{ if(c.isMesh) meshes.push(c); });
+  exporter.parse(meshes, gltf =>{
+    const output = JSON.stringify(gltf,null,2);
+    const blob = new Blob([output],{type:'application/json'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'farm.gltf';
+    a.click();
+  },'binary');
+};
+document.getElementById('chkSnap').addEventListener('change', e=>{ snapEnabled = e.target.checked; });
+document.getElementById('gridSize').addEventListener('change', e=>{ gridSize = parseFloat(e.target.value); });
+document.getElementById('btnTop').onclick = ()=>{
+  activeCam = orthoCam; controls.object = orthoCam;
+  orthoCam.position.set(0,30,0); orthoCam.lookAt(0,0,0);
+  saveCameraState();
+};
+document.getElementById('btn3D').onclick = ()=>{
+  activeCam = perspCam; controls.object = perspCam;
+  perspCam.position.set(12,12,12); perspCam.lookAt(0,0,0);
+  saveCameraState();
+};
+document.getElementById('btnToggleSidebar').onclick = ()=>{
+  document.getElementById('left').classList.toggle('collapsed');
+};
+
+document.querySelectorAll('.lib-item[data-lib]').forEach(el=>{
+  el.addEventListener('click', ()=> addLibraryItem(el.dataset.lib));
+});
+document.querySelectorAll('.lib-item[data-room]').forEach(el=>{
+  el.addEventListener('click', ()=> addRoom(el.dataset.room));
+});
+
+function saveCameraState(){
+  localStorage.setItem('camType', activeCam===perspCam?'persp':'ortho');
+  localStorage.setItem('camPos', JSON.stringify(activeCam.position.toArray()));
+  localStorage.setItem('camTarget', JSON.stringify(controls.target.toArray()));
+}
+function loadCameraState(){
+  const cam = localStorage.getItem('camType');
+  const pos = JSON.parse(localStorage.getItem('camPos'));
+  const tgt = JSON.parse(localStorage.getItem('camTarget'));
+  if(cam && pos && tgt){
+    if(cam==='persp'){ perspCam.position.fromArray(pos); controls.target.fromArray(tgt); activeCam=perspCam; controls.object=perspCam; }
+    else { orthoCam.position.fromArray(pos); orthoCam.lookAt(tgt[0],tgt[1],tgt[2]); controls.target.fromArray(tgt); activeCam=orthoCam; controls.object=orthoCam; }
+  }
+}
+window.addEventListener('resize', ()=>{
+  const w=window.innerWidth, h=window.innerHeight;
+  perspCam.aspect=w/h; perspCam.updateProjectionMatrix();
+  const s=15;
+  orthoCam.left=-s; orthoCam.right=s; orthoCam.top=s; orthoCam.bottom=-s;
+  orthoCam.updateProjectionMatrix();
+  renderer.setSize(w,h); labelRenderer.setSize(w,h);
+});
+loadCameraState();
+
+function animate(){
+  requestAnimationFrame(animate);
+  controls.update();
+  renderer.render(scene, activeCam);
+  labelRenderer.render(scene, activeCam);
+}
+animate();
+</script>
+</body>
+</html>
