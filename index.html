@@ -2,110 +2,63 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Mushroom Farm 3D Planner</title>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<title>Mushroom Farm – 3D Blueprint</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:'Segoe UI',sans-serif;overflow:hidden;background:#1a1a2e;color:#eee}
-#toolbar{position:fixed;top:0;left:0;right:0;height:48px;background:#0f0f23;display:flex;align-items:center;padding:0 10px;z-index:100;gap:6px;flex-wrap:wrap}
-#toolbar button,#toolbar label{background:#1a1a3e;color:#8cf;border:1px solid #334;padding:5px 10px;border-radius:4px;cursor:pointer;font-size:13px}
-#toolbar button:hover,#toolbar label:hover{background:#2a2a5e}
-#toolbar .spacer{flex:1}
-#toolbar .label{display:flex;align-items:center;gap:4px}
-#toolbar .label input{accent-color:#8cf}
-#toolbar select{background:#1a1a3e;color:#8cf;border:1px solid #334;padding:3px 6px;border-radius:4px;font-size:13px}
-#left{position:fixed;top:48px;left:0;width:220px;height:calc(100vh - 48px);background:#111133;overflow-y:auto;padding:8px;z-index:90;transition:transform .3s}
-#left.collapsed{transform:translateX(-220px)}
-#left h3{font-size:13px;color:#8cf;margin-bottom:6px}
-.lib-item{display:flex;align-items:center;gap:6px;padding:6px 8px;margin-bottom:4px;background:#1a1a3e;border-radius:4px;cursor:pointer;font-size:13px}
-.lib-item:hover{background:#2a2a5e}
-.lib-item i{width:18px;text-align:center;color:#8cf}
-#right{position:fixed;top:48px;right:0;width:280px;height:calc(100vh - 48px);background:#111133;overflow-y:auto;padding:8px;z-index:90}
-#right h3{font-size:13px;color:#8cf;margin-bottom:6px}
-#info{position:fixed;bottom:0;left:0;right:0;height:60px;background:#0f0f23;padding:6px 12px;font-size:12px;line-height:1.4;overflow:hidden;z-index:90;color:#aaa}
-#info summary{cursor:pointer;color:#8cf}
-#info pre{white-space:pre-wrap;word-break:break-word}
+body{background:#0a1628;font-family:'Segoe UI',Arial,sans-serif;overflow:hidden;color:#c8d6e5}
 canvas{display:block}
-@media(max-width:768px){
- #left,#right{width:180px}
- #toolbar button{padding:4px 6px;font-size:11px}
-}
+#info{position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:10;text-align:center;pointer-events:none}
+#info h1{font-size:20px;color:#00d2ff;letter-spacing:3px;text-transform:uppercase;margin-bottom:2px}
+#info p{font-size:11px;color:#5a7d9a}
+#legend{position:fixed;bottom:16px;left:16px;z-index:10;background:rgba(10,22,40,0.85);border:1px solid #1a3a5c;border-radius:6px;padding:10px 14px;font-size:11px;line-height:1.8}
+#legend h4{color:#00d2ff;margin-bottom:4px;font-size:12px}
+#legend span{display:inline-block;width:12px;height:12px;border-radius:2px;margin-right:6px;vertical-align:middle}
+#controls{position:fixed;bottom:16px;right:16px;z-index:10;background:rgba(10,22,40,0.85);border:1px solid #1a3a5c;border-radius:6px;padding:10px 14px;font-size:11px;line-height:2}
+#controls button{background:#1a3a5c;color:#00d2ff;border:1px solid #2a5a8c;padding:4px 10px;border-radius:3px;cursor:pointer;font-size:11px;margin:0 2px}
+#controls button:hover{background:#2a5a8c}
+.tooltip{position:fixed;padding:6px 10px;background:rgba(10,22,40,0.95);border:1px solid #00d2ff;border-radius:4px;font-size:11px;color:#c8d6e5;pointer-events:none;z-index:100;display:none;max-width:200px}
 </style>
 </head>
 <body>
-<div id="toolbar">
-  <button id="btnUndo"><i class="fa-solid fa-undo"></i></button>
-  <button id="btnRedo"><i class="fa-solid fa-redo"></i></button>
-  <button id="btnAddRoom"><i class="fa-solid fa-plus"></i> Add Room</button>
-  <button id="btnAddTray"><i class="fa-solid fa-box"></i> Add Tray</button>
-  <button id="btnReset"><i class="fa-solid fa-rotate"></i> Reset</button>
-  <button id="btnExport"><i class="fa-solid fa-download"></i> Export</button>
-  <button id="btnImport"><i class="fa-solid fa-upload"></i> Import</button>
-  <button id="btnGLTF"><i class="fa-solid fa-file-3d"></i> Export GLTF</button>
-  <span class="spacer"></span>
-  <label class="label"><input type="checkbox" id="chkSnap" checked> Snap</label>
-  <select id="gridSize"><option value="0.5">0.5 m</option><option value="1" selected>1 m</option><option value="2">2 m</option></select>
-  <button id="btnTop"><i class="fa-solid fa-arrows-up-to-line"></i> Top</button>
-  <button id="btn3D"><i class="fa-solid fa-cube"></i> 3D</button>
-  <button id="btnToggleSidebar"><i class="fa-solid fa-bars"></i></button>
-</div>
-<div id="left">
-  <h3>Library – click to add</h3>
-  <div class="lib-item" data-lib="shelf"><i class="fa-solid fa-layer-group"></i> Shelf</div>
-  <div class="lib-item" data-lib="table"><i class="fa-solid fa-table"></i> Table</div>
-  <div class="lib-item" data-lib="humidifier"><i class="fa-solid fa-droplet"></i> Humidifier</div>
-  <div class="lib-item" data-lib="fan"><i class="fa-solid fa-wind"></i> Fan</div>
-  <div class="lib-item" data-lib="compost"><i class="fa-solid fa-seedling"></i> Compost Pile</div>
-  <div class="lib-item" data-lib="bag"><i class="fa-solid fa-box"></i> Bag/Block</div>
-  <div class="lib-item" data-lib="door"><i class="fa-solid fa-door-open"></i> Door</div>
-  <div class="lib-item" data-lib="window"><i class="fa-solid fa-window-maximize"></i> Window</div>
-  <div class="lib-item" data-lib="light"><i class="fa-solid fa-lightbulb"></i> Light</div>
-  <div class="lib-item" data-lib="tray"><i class="fa-solid fa-border-all"></i> Tray (3‑sec)</div>
-  <hr style="border-color:#334;margin:8px 0">
-  <h3>Rooms – click to add</h3>
-  <div class="lib-item" data-room="compost"><i class="fa-solid fa-leaf" style="color:#4caf50"></i> Compost Hall (5×5)</div>
-  <div class="lib-item" data-room="lab"><i class="fa-solid fa-flask" style="color:#ffeb3b"></i> Lab (4×4)</div>
-  <div class="lib-item" data-room="incubation"><i class="fa-solid fa-dna" style="color:#42a5f5"></i> Incubation (3×3)</div>
-  <div class="lib-item" data-room="fruiting"><i class="fa-solid fa-mushroom" style="color:#e53935"></i> Fruiting Room (3×4)</div>
-</div>
-<div id="right">
-  <h3>Inspector</h3>
-  <div id="guiContainer"></div>
-  <p id="noSelect" style="color:#666;font-size:13px;margin-top:20px">Select an object to edit its properties.</p>
-</div>
 <div id="info">
-  <details>
-    <summary style="cursor:pointer">Mushroom Farm Layout Planner – Instructions & Best Practices</summary>
-    <pre>• Keep the Compost Hall central for easy access.
-• Lab should be adjacent to Compost for quick spawn transfers.
-• Incubation rooms need stable 24‑26 °C, 60‑70 % RH.
-• Fruiting rooms: 18‑22 °C, 85‑95 % RH, indirect light.
-• Maintain a one‑way workflow: Compost → Lab → Incubation → Fruiting.
-• Use doors/windows to control airflow and contamination.
-• Place fans for gentle air circulation; avoid direct drafts on fruiting.
-• Keep the floor grid to 1 m for accurate spacing and cleaning paths.
-• Each room contains 5 trays; every tray is divided into 3 sections.</pre>
-  </details>
+  <h1>🍄 Mushroom Farm Blueprint</h1>
+  <p>3D Layout – All dimensions in metres</p>
 </div>
+<div id="legend">
+  <h4>Legend</h4>
+  <div><span style="background:rgba(0,210,255,0.15);border:1px solid #00d2ff"></span>Room boundary (wireframe)</div>
+  <div><span style="background:#4caf50"></span>Compost Hall</div>
+  <div><span style="background:#ffeb3b"></span>Lab</div>
+  <div><span style="background:#42a5f5"></span>Incubation</div>
+  <div><span style="background:#e53935"></span>Fruiting Room</div>
+  <div><span style="background:#bcaaa4"></span>Tray</div>
+  <div><span style="background:#8d6e63"></span>Shelf / Equipment</div>
+  <div><span style="background:#bbdefb;opacity:0.4"></span>Door / Window</div>
+</div>
+<div id="controls">
+  <button id="btnTop">Top View</button>
+  <button id="btnIso">Isometric</button>
+  <button id="btnWalk">Walk View</button>
+  <button id="btnReset">Reset</button>
+</div>
+<div class="tooltip" id="tooltip"></div>
 
 <script type="importmap">
 {
-  "imports": {
-    "three": "https://unpkg.com/three@0.157.0/build/three.module.js",
-    "three/addons/": "https://unpkg.com/three@0.157.0/examples/jsm/"
+  "imports":{
+    "three":"https://unpkg.com/three@0.157.0/build/three.module.js",
+    "three/addons/":"https://unpkg.com/three@0.157.0/examples/jsm/"
   }
 }
 </script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/dat-gui/0.7.9/dat.gui.min.js"></script>
 <script type="module">
 import * as THREE from 'three';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {CSS2DRenderer,CSS2DObject} from 'three/addons/renderers/CSS2DRenderer.js';
-import {GLTFExporter} from 'three/addons/exporters/GLTFExporter.js';
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x111122);
-scene.fog = new THREE.FogExp2(0x111133, 0.012);
+scene.background = new THREE.Color(0x0a1628);
+scene.fog = new THREE.FogExp2(0x0a1628, 0.018);
 
 const renderer = new THREE.WebGLRenderer({antialias:true});
 renderer.setPixelRatio(window.devicePixelRatio);
@@ -116,556 +69,497 @@ document.body.appendChild(renderer.domElement);
 
 const labelRenderer = new CSS2DRenderer();
 labelRenderer.setSize(window.innerWidth, window.innerHeight);
-labelRenderer.domElement.style.position = 'absolute';
-labelRenderer.domElement.style.top = '0';
+labelRenderer.domElement.style.position='absolute';
+labelRenderer.domElement.style.top='0';
 document.body.appendChild(labelRenderer.domElement);
 
-// Lights
-scene.add(new THREE.AmbientLight(0x404060, 0.6));
-const dirLight = new THREE.DirectionalLight(0xffffff, 1.2);
-dirLight.position.set(10,15,10);
-dirLight.castShadow = true;
-dirLight.shadow.mapSize.set(2048,2048);
-dirLight.shadow.camera.near = 0.5;
-dirLight.shadow.camera.far = 50;
-dirLight.shadow.camera.left = -30;
-dirLight.shadow.camera.right = 30;
-dirLight.shadow.camera.top = 30;
-dirLight.shadow.camera.bottom = -30;
+// Lighting
+const ambLight = new THREE.AmbientLight(0x334466, 0.5);
+scene.add(ambLight);
+const dirLight = new THREE.DirectionalLight(0xe8eaf6, 1.4);
+dirLight.position.set(15,25,15);
+dirLight.castShadow=true;
+dirLight.shadow.mapSize.set(4096,4096);
+dirLight.shadow.camera.left=-30; dirLight.shadow.camera.right=30;
+dirLight.shadow.camera.top=30; dirLight.shadow.camera.bottom=-30;
 scene.add(dirLight);
-scene.add(new THREE.HemisphereLight(0x88ccff, 0x444422, 0.8));
+const hemiLight = new THREE.HemisphereLight(0x4488cc, 0x112244, 0.6);
+scene.add(hemiLight);
 
 // Cameras
-const aspect = window.innerWidth / window.innerHeight;
-const perspCam = new THREE.PerspectiveCamera(50, aspect, 0.1, 500);
-perspCam.position.set(12,12,12);
-const orthoCam = new THREE.OrthographicCamera(-15,15,15,-15,0.1,500);
+const aspect = window.innerWidth/window.innerHeight;
+const perspCam = new THREE.PerspectiveCamera(45, aspect, 0.1, 500);
+perspCam.position.set(14,14,14);
+const orthoCam = new THREE.OrthographicCamera(-20,20,20,-20,0.1,500);
 orthoCam.position.set(0,30,0);
 orthoCam.lookAt(0,0,0);
-let activeCam = perspCam;
+const isoCam = new THREE.PerspectiveCamera(35, aspect, 0.1, 500);
+isoCam.position.set(18,14,18);
+let activeCam = orthoCam;
 
 const controls = new OrbitControls(activeCam, renderer.domElement);
-controls.enableDamping = true;
-controls.dampingFactor = 0.1;
+controls.enableDamping=true;
+controls.dampingFactor=0.08;
 controls.target.set(0,0,0);
+controls.mouseButtons={LEFT:THREE.Orbit.ROTATE,MIDDLE:THREE.Orbit.DOLLY,RIGHT:THREE.Orbit.PAN};
 
 // Grid
-const grid = new THREE.GridHelper(40,40,0x444466,0x222244);
-scene.add(grid);
+const gridMain = new THREE.GridHelper(50,50,0x1a3a5c,0x0d1f33);
+scene.add(gridMain);
+const gridSub = new THREE.GridHelper(50,100,0x0f2240,0x0a1628);
+scene.add(gridSub);
 
-// Ground plane for raycasting
+// Ground
 const groundGeo = new THREE.PlaneGeometry(100,100);
 const groundMat = new THREE.MeshBasicMaterial({visible:false});
 const ground = new THREE.Mesh(groundGeo, groundMat);
-ground.rotation.x = -Math.PI/2;
-ground.name = 'ground';
+ground.rotation.x=-Math.PI/2;
+ground.name='ground';
 scene.add(ground);
 
-// Helpers
-const raycaster = new THREE.Raycaster();
-const mouse = new THREE.Vector2();
-let dragObj = null;
-let offset = new THREE.Vector3();
-let snapEnabled = true;
-let gridSize = 1;
-
-// Object data store
-const objects = new Map();
-const history = [];
-let historyIdx = -1;
-
-// Room defaults
-const roomDefaults = {
-  compost:  {w:5,d:5,h:3,color:0x4caf50,label:'Compost Hall'},
-  lab:      {w:4,d:4,h:3,color:0xffeb3b,label:'Lab'},
-  incubation:{w:3,d:3,h:2.5,color:0x42a5f5,label:'Incubation'},
-  fruiting: {w:3,d:4,h:2.5,color:0xe53935,label:'Fruiting Room'}
-};
-
-const materialPresets = {
-  'Default': null,
-  'Wood': 0x8d6e63,
-  'Concrete': 0x9e9e9e,
-  'Grass': 0x66bb6a,
-  'Metal': 0x78909c,
-  'Custom': 0xffffff
-};
-
-function createLabel(text, width, height){
-  const div = document.createElement('div');
-  div.className = 'label';
-  div.textContent = text;
-  div.style.cssText = `background:rgba(0,0,0,.6);color:#fff;padding:2px 4px;border-radius:3px;font-size:11px;white-space:nowrap;transform:translateX(-50%)`;
-  const obj = new CSS2DObject(div);
-  obj.position.set(0, height/2 + 0.2, 0);
-  return {div, obj};
+// Blueprint-style material factory
+function bpMat(color, opacity=0.25){
+  return new THREE.MeshPhongMaterial({color, transparent:true, opacity, side:THREE.DoubleSide, depthWrite:false});
+}
+function bpWire(color='#00d2ff', opacity=0.8){
+  return new THREE.MeshBasicMaterial({color, wireframe:true, transparent:true, opacity});
 }
 
-function createTray(w,d,h){
-  const group = new THREE.Group();
-  const baseGeo = new THREE.BoxGeometry(w, h, d);
-  const baseMat = new THREE.MeshPhongMaterial({color:0xbcaaa4, transparent:true, opacity:0.6});
-  const base = new THREE.Mesh(baseGeo, baseMat);
-  base.castShadow = true; base.receiveShadow = true;
-  group.add(base);
-  const divW = 0.05;
-  const divGeo = new THREE.BoxGeometry(divW, h, d);
-  const divMat = new THREE.MeshPhongMaterial({color:0x8d6e63});
-  const div1 = new THREE.Mesh(divGeo, divMat);
-  div1.position.set(-w/2 + w/3, 0, 0);
-  div1.castShadow = true;
-  const div2 = div1.clone();
-  div2.position.set(-w/2 + 2*w/3, 0, 0);
-  group.add(div1, div2);
-  group.userData.libType = 'tray';
-  group.userData.w = w; group.userData.d = d; group.userData.h = h;
-  return group;
+// CSS Label
+function makeLabel(text, size=0.4){
+  const div=document.createElement('div');
+  div.textContent=text;
+  div.style.cssText=`background:none;color:#00d2ff;font-size:11px;font-weight:600;font-family:consolas,'Courier New',monospace;white-space:nowrap;padding:1px 4px;border:1px solid rgba(0,210,255,0.3);border-radius:2px`;
+  const obj=new CSS2DObject(div);
+  obj.scale.setScalar(1/size*0.4);
+  return obj;
 }
 
-function addRoom(type, x=0, y=0, z=0){
-  const def = roomDefaults[type];
-  if(!def) return;
-  const {w,d,h,color,label} = def;
-  const geo = new THREE.BoxGeometry(w, h, d);
-  const mat = new THREE.MeshPhongMaterial({color, transparent:true, opacity:0.5, side:THREE.DoubleSide});
-  const mesh = new THREE.Mesh(geo, mat);
-  mesh.position.set(x, h/2, z);
-  mesh.castShadow = true;
-  mesh.receiveShadow = true;
-  mesh.name = label;
-  const wireGeo = new THREE.BoxGeometry(w, h, d);
-  const wireMat = new THREE.MeshBasicMaterial({color:0x00ffff, wireframe:true, transparent:true, opacity:0.3});
-  const wire = new THREE.Mesh(wireGeo, wireMat);
-  wire.position.copy(mesh.position);
-  const {obj:labelObj} = createLabel(label, w, h);
-  const group = new THREE.Group();
-  group.add(mesh, wire, labelObj);
-  group.userData = {type:'room', roomType:type, w, d, h, baseColor:color, label};
-  scene.add(group);
-  objects.set(group.uuid, group.userData);
+// Dimension line helper
+function addDimensionLine(start, end, labelText, color=0x00d2ff, yOffset=0.02){
+  const points=[start.clone(), end.clone()];
+  const geom=new THREE.BufferGeometry().setFromPoints(points);
+  const mat=new THREE.LineBasicMaterial({color, transparent:true, opacity:0.7});
+  const line=new THREE.Line(geom,mat);
+  line.position.y=yOffset;
+  scene.add(line);
+  // end caps
+  [start,end].forEach(p=>{
+    const cap=new THREE.Mesh(new THREE.SphereGeometry(0.03,8,8), new THREE.MeshBasicMaterial({color}));
+    cap.position.copy(p); cap.position.y=yOffset; scene.add(cap);
+  });
+  // label
+  const mid=new THREE.Vector3().addVectors(start,end).multiplyScalar(0.5);
+  const lbl=makeLabel(labelText,0.3);
+  lbl.position.set(mid.x, yOffset+0.05, mid.z);
+  scene.add(lbl);
+}
 
-  // 5 trays per room
-  const trayGroup = new THREE.Group();
-  trayGroup.userData = {type:'trayGroup', parentRoom:group.uuid};
-  const trayW = w * 0.8 / 5;
-  const trayD = d * 0.8;
-  const trayH = h * 0.2;
-  const startX = x - w/2 + trayW/2 + 0.1;
-  const startZ = z - d/2 + trayD/2 + 0.1;
+// Room structure definitions
+const rooms=[
+  {type:'compost',  id:'Compost Hall',     w:5,d:5,h:3, color:0x4caf50, pos:{x:0,y:0,z:0}},
+  {type:'lab',      id:'Lab',              w:4,d:4,h:3, color:0xffeb3b, pos:{x:6,y:0,z:0}},
+  {type:'incubation',id:'Incubation',      w:3,d:3,h:2.5,color:0x42a5f5,pos:{x:0,y:0,z:6}},
+  {type:'fruiting', id:'Fruiting Room A',  w:3,d:4,h:2.5,color:0xe53935,pos:{x:6,y:0,z:6}},
+  {type:'fruiting', id:'Fruiting Room B',  w:3,d:4,h:2.5,color:0xe53935,pos:{x:10,y:0,z:6}},
+];
+
+const roomMeshes=[];
+
+rooms.forEach(rm=>{
+  const {w,d,h,color,pos,id}=rm;
+  const cx=pos.x+w/2, cz=pos.z+d/2;
+
+  // Solid fill (blueprint tinted)
+  const solid=new THREE.Mesh(
+    new THREE.BoxGeometry(w,h,d),
+    bpMat(color,0.12)
+  );
+  solid.position.set(cx, h/2, cz);
+  solid.castShadow=true; solid.receiveShadow=true;
+  scene.add(solid);
+
+  // Wireframe outline
+  const wire=new THREE.Mesh(
+    new THREE.BoxGeometry(w,h,d),
+    bpWire(color,0.7)
+  );
+  wire.position.set(cx, h/2, cz);
+  scene.add(wire);
+
+  // Floor footprint
+  const floor=new THREE.Mesh(
+    new THREE.PlaneGeometry(w,d),
+    new THREE.MeshBasicMaterial({color, transparent:true, opacity:0.06, side:THREE.DoubleSide})
+  );
+  floor.rotation.x=-Math.PI/2;
+  floor.position.set(cx,0.005,cz);
+  scene.add(floor);
+
+  // Corner markers
+  [[0,0],[w,0],[w,d],[0,d]].forEach(([ox,oz])=>{
+    const cor=new THREE.Mesh(new THREE.BoxGeometry(0.08,0.08,0.08),new THREE.MeshBasicMaterial({color}));
+    cor.position.set(pos.x+ox, 0.04, pos.z+oz);
+    scene.add(cor);
+  });
+
+  // --- 5 Trays inside each room ---
+  const trayW=(w*0.78)/5;
+  const trayD=d*0.78;
+  const trayH=h*0.18;
+  const tStartX=pos.x+(w-trayW*5-0.05*4)/2;
+  const tStartZ=pos.z+(d-trayD)/2;
+
   for(let i=0;i<5;i++){
-    const tray = createTray(trayW, trayD, trayH);
-    tray.position.set(startX + i*(trayW+0.05), trayH/2, startZ);
-    tray.castShadow = true;
-    tray.receiveShadow = true;
-    trayGroup.add(tray);
-    objects.set(tray.uuid, {type:'tray', libType:'tray', w:trayW, d:trayD, h:trayH, parentRoom:group.uuid});
-  }
-  group.add(trayGroup);
-  selectObject(group);
-  pushHistory({action:'add', uuid:group.uuid});
-  return group;
-}
+    const tx=tStartX+i*(trayW+0.05);
+    const tz=tStartZ;
 
-function addLibraryItem(type){
-  let mesh, w=1, d=1, h=1, color=0x888888, name=type;
-  switch(type){
-    case 'shelf':
-      w=2; d=1; h=3; color=0x8d6e63; name='Shelf';
-      const g = new THREE.Group();
-      for(let i=0;i<3;i++){
-        const b = new THREE.Mesh(new THREE.BoxGeometry(w,0.2,d), new THREE.MeshPhongMaterial({color:0x5d4037}));
-        b.position.set(0, i*1.1+0.1, 0);
-        g.add(b);
-      }
-      mesh = g; break;
-    case 'table':
-      w=1.5; d=1; h=0.8; color=0x795548; name='Table';
-      const top = new THREE.Mesh(new THREE.BoxGeometry(w,0.1,d), new THREE.MeshPhongMaterial({color:0x6d4c41}));
-      top.position.y = h/2;
-      const leg = new THREE.Mesh(new THREE.BoxGeometry(0.1, h-0.1, 0.1), new THREE.MeshPhongMaterial({color:0x5d4037}));
-      leg.position.set(-w/2+0.15, (h-0.1)/2, -d/2+0.15);
-      const leg2 = leg.clone(); leg2.position.set(w/2-0.15, (h-0.1)/2, -d/2+0.15);
-      const leg3 = leg.clone(); leg3.position.set(-w/2+0.15, (h-0.1)/2, d/2-0.15);
-      const leg4 = leg.clone(); leg4.position.set(w/2-0.15, (h-0.1)/2, d/2-0.15);
-      mesh = new THREE.Group(); mesh.add(top,leg,leg2,leg3,leg4); break;
-    case 'humidifier':
-      w=0.6; d=0.6; h=0.6; color=0x29b6f6; name='Humidifier';
-      mesh = new THREE.Mesh(new THREE.CylinderGeometry(0.25,0.25,0.6,16), new THREE.MeshPhongMaterial({color})); break;
-    case 'fan':
-      w=0.8; d=0.8; h=0.2; color=0x90a4ae; name='Fan';
-      mesh = new THREE.Mesh(new THREE.CircleGeometry(0.4,16), new THREE.MeshPhongMaterial({color, side:THREE.DoubleSide})); break;
-    case 'compost':
-      w=1.5; d=1.5; h=1; color=0x6d4c41; name='Compost Pile';
-      mesh = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), new THREE.MeshPhongMaterial({color})); break;
-    case 'bag':
-      w=0.5; d=0.5; h=0.7; color=0x8bc34a; name='Bag/Block';
-      mesh = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), new THREE.MeshPhongMaterial({color})); break;
-    case 'door':
-      w=1; d=0.1; h=2.2; color=0x795548; name='Door';
-      mesh = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), new THREE.MeshPhongMaterial({color})); break;
-    case 'window':
-      w=1.2; d=0.1; h=1.2; color=0xbbdefb; name='Window';
-      const winMat = new THREE.MeshPhongMaterial({color:0xbbdefb, transparent:true, opacity:0.3});
-      mesh = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), winMat); break;
-    case 'light':
-      w=0.2; d=0.2; h=0.2; color=0xffff00; name='Light';
-      const light = new THREE.PointLight(0xffffaa, 1.5, 10);
-      light.position.set(0,2,0);
-      mesh = light; break;
-    case 'tray':
-      mesh = createTray(0.6,0.4,0.15);
-      mesh.userData = {type:'tray', libType:'tray', w:0.6, d:0.4, h:0.15};
-      name='Tray'; break;
-    default: return;
-  }
-  mesh.position.set(0, h/2 || 0.5, 0);
-  mesh.castShadow = true;
-  mesh.receiveShadow = true;
-  mesh.name = name;
-  const grp = new THREE.Group();
-  grp.add(mesh);
-  grp.userData = {type:'library', libType:type, w, d:(d||w), h:(h||1)};
-  scene.add(grp);
-  objects.set(grp.uuid, grp.userData);
-  selectObject(grp);
-  pushHistory({action:'add', uuid:grp.uuid});
-}
+    // Tray base
+    const tBase=new THREE.Mesh(
+      new THREE.BoxGeometry(trayW, trayH, trayD),
+      bpMat(0xbcaaa4, 0.35)
+    );
+    tBase.position.set(tx+trayW/2, trayH/2, tz+trayD/2);
+    tBase.castShadow=true; tBase.receiveShadow=true;
+    scene.add(tBase);
 
-// Default layout
-addRoom('compost', 0,0,0);
-addRoom('lab', 6,0,0);
-addRoom('incubation', 0,0,6);
-addRoom('fruiting', 6,0,6);
-addRoom('fruiting', 10,0,6);
-addRoom('room', 14,0,0);
+    // Tray wire
+    const tWire=new THREE.Mesh(
+      new THREE.BoxGeometry(trayW, trayH, trayD),
+      bpWire(0x808080, 0.45)
+    );
+    tWire.position.copy(tBase.position);
+    scene.add(tWire);
 
-// Selection & transform
-let selected = null;
-let multiSelect = [];
-const guiContainer = document.getElementById('guiContainer');
-const noSelect = document.getElementById('noSelect');
-let gui, folder;
-
-function selectObject(obj){
-  if(selected) selected.material && (selected.material.emissive.setHex(0x000000));
-  selected = obj;
-  multiSelect = obj ? [obj] : [];
-  if(!obj){ noSelect.style.display=''; guiContainer.innerHTML=''; return; }
-  obj.material && (obj.material.emissive.setHex(0x222222));
-  noSelect.style.display='none';
-  buildGUI(obj);
-}
-
-function buildGUI(obj){
-  guiContainer.innerHTML = '';
-  gui = new DAT.GUI({container:guiContainer, width:260});
-  folder = gui.addFolder('Properties');
-  const pos = folder.addFolder('Position');
-  pos.add(obj.position,'x',-20,20,0.1).name('X').listen();
-  pos.add(obj.position,'y',-2,20,0.1).name('Y').listen();
-  pos.add(obj.position,'z',-20,20,0.1).name('Z').listen();
-  const rot = folder.addFolder('Rotation (deg)');
-  const rad = obj.rotation;
-  rot.add({x:THREE.MathUtils.radToDeg(rad.x)},'x',-180,180,1).onChange(v=>rad.x=THREE.MathUtils.degToRad(v)).name('X');
-  rot.add({y:THREE.MathUtils.radToDeg(rad.y)},'y',-180,180,1).onChange(v=>rad.y=THREE.MathUtils.degToRad(v)).name('Y');
-  rot.add({z:THREE.MathUtils.radToDeg(rad.z)},'z',-180,180,1).onChange(v=>rad.z=THREE.MathUtils.degToRad(v)).name('Z');
-  const scl = folder.addFolder('Scale');
-  scl.add(obj.scale,'x',0.1,10,0.1).name('X').listen();
-  scl.add(obj.scale,'y',0.1,10,0.1).name('Y').listen();
-  scl.add(obj.scale,'z',0.1,10,0.1).name('Z').listen();
-
-  if(obj.userData){
-    const ud = obj.userData;
-    if(ud.type==='room'){
-      const rm = folder.addFolder('Room Size');
-      rm.add({w:ud.w},'w',0.5,20,0.1).name('Width').onChange(v=>resizeRoom(obj,v,'w'));
-      rm.add({d:ud.d},'d',0.5,20,0.1).name('Depth').onChange(v=>resizeRoom(obj,v,'d'));
-      rm.add({h:ud.h},'h',0.5,15,0.1).name('Height').onChange(v=>resizeRoom(obj,v,'h'));
-      rm.open();
-      const mat = folder.addFolder('Material');
-      const presetNames = Object.keys(materialPresets);
-      mat.add({preset:'Default'},'preset',presetNames).name('Preset').onChange(v=>applyPreset(obj,v));
-      mat.open();
+    // 3-section dividers (vertical dividers)
+    const divMat=new THREE.MeshBasicMaterial({color:0x8d6e63, transparent:true, opacity:0.5});
+    const divW=0.04;
+    for(let s=1;s<=2;s++){
+      const div=new THREE.Mesh(
+        new THREE.BoxGeometry(divW, trayH*0.9, trayD*0.9),
+        divMat
+      );
+      div.position.set(
+        tx + (trayW/3)*s,
+        trayH/2+0.01,
+        tz+trayD/2
+      );
+      scene.add(div);
     }
-    if(ud.libType==='tray' || ud.type==='tray'){
-      const tw = folder.addFolder('Tray Size');
-      tw.add({w:ud.w},'w',0.2,5,0.05).name('Width').onChange(v=>resizeTray(obj,v,'w'));
-      tw.add({d:ud.d},'d',0.2,5,0.05).name('Depth').onChange(v=>resizeTray(obj,v,'d'));
-      tw.add({h:ud.h},'h',0.2,2,0.05).name('Height').onChange(v=>resizeTray(obj,v,'h'));
-      tw.open();
+
+    // Small mushroom icons on each section
+    for(let s=0;s<3;s++){
+      const sx=tx + trayW/6 + s*(trayW/3);
+      const sz=tz+trayD/2;
+      const icon=makeLabel('🍄', 0.25);
+      icon.position.set(sx, trayH+0.03, sz);
+      scene.add(icon);
     }
+
+    // Tray label
+    const tLabel=makeLabel(`T${i+1}`,0.22);
+    tLabel.position.set(tx+trayW/2, trayH+0.08, tz+trayD/2+0.15);
+    scene.add(tLabel);
   }
-  folder.open();
-}
 
-function resizeRoom(group, value, axis){
-  const ud = group.userData;
-  if(!ud) return;
-  const prev = axis==='w'?ud.w:axis==='d'?ud.d:ud.h;
-  const idx = axis==='w'?0:axis==='d'?2:1;
-  group.scale.setComponent(idx, group.scale.getComponent(idx) * (value/prev));
-  ud[axis] = value;
-  const trayGroup = group.children.find(c=>c.userData&&c.userData.type==='trayGroup');
-  if(trayGroup){
-    const tw = value * 0.8 / 5;
-    const td = (axis==='d'?value:ud.d) * 0.8;
-    const th = (axis==='h'?value:ud.h) * 0.2;
-    const px = axis==='w'?group.position.x:ud.w;
-    const pz = axis==='d'?group.position.z:ud.d;
-    const startX = group.position.x - value/2 + tw/2 + 0.1;
-    const startZ = group.position.z - (axis==='d'?value:ud.d)/2 + td/2 + 0.1;
-    trayGroup.children.forEach((t,i)=>{
-      t.scale.setComponent(0, tw/t.userData.w);
-      t.scale.setComponent(2, td/t.userData.d);
-      t.scale.setComponent(1, th/t.userData.h);
-      t.position.set(startX + i*(tw+0.05), th/2, startZ);
-      t.userData.w = tw; t.userData.d = td; t.userData.h = th;
-    });
-  }
-  pushHistory({action:'resize', uuid:group.uuid, axis, from:prev, to:value});
-}
+  // --- Equipment placement ---
+  // Shelf (back wall)
+  const shelfW=w*0.8, shelfD=0.4, shelfH=h*0.85;
+  const shelfZ=pos.z+d*0.1;
+  const shelf=new THREE.Mesh(
+    new THREE.BoxGeometry(shelfW, shelfH, shelfD),
+    bpMat(0x6d4c41,0.3)
+  );
+  shelf.position.set(cx, shelfH/2, shelfZ);
+  shelf.castShadow=true;
+  scene.add(shelf);
+  const shelfWire=new THREE.Mesh(new THREE.BoxGeometry(shelfW,shelfH,shelfD),bpWire(0x8d6e63,0.4));
+  shelfWire.position.copy(shelf.position);
+  scene.add(shelfWire);
+  const shelfLabel=makeLabel('📚 Shelf',0.28);
+  shelfLabel.position.set(cx, shelfH+0.1, shelfZ);
+  scene.add(shelfLabel);
 
-function resizeTray(group, value, axis){
-  const ud = group.userData;
-  if(!ud) return;
-  const prev = axis==='w'?ud.w:axis==='d'?ud.d:ud.h;
-  const idx = axis==='w'?0:axis==='d'?2:1;
-  group.scale.setComponent(idx, group.scale.getComponent(idx) * (value/prev));
-  ud[axis] = value;
-  pushHistory({action:'resize', uuid:group.uuid, axis, from:prev, to:value});
-}
-
-function applyPreset(group, name){
-  const color = materialPresets[name];
-  if(color===null) return;
-  group.traverse(c=>{ if(c.isMesh && c.material) c.material.color.setHex(color); });
-  pushHistory({action:'material', uuid:group.uuid, preset:name});
-}
-
-function pushHistory(entry){
-  historyIdx++;
-  history.length = historyIdx;
-  history.push(entry);
-}
-function undo(){
-  if(historyIdx<0) return;
-  const entry = history[historyIdx--];
-  const obj = scene.getObjectByProperty('uuid', entry.uuid);
-  if(!obj) return;
-  if(entry.action==='add'){ scene.remove(obj); objects.delete(entry.uuid); }
-  else if(entry.action==='resize'){
-    const ud = obj.userData;
-    if(ud && ud.type==='room') resizeRoom(obj, entry.from, entry.axis);
-    else if(ud && (ud.type==='tray'||ud.libType==='tray')) resizeTray(obj, entry.from, entry.axis);
-  } else if(entry.action==='material') applyPreset(obj, entry.preset);
-}
-function redo(){
-  if(historyIdx>=history.length-1) return;
-  const entry = history[++historyIdx];
-  const obj = scene.getObjectByProperty('uuid', entry.uuid);
-  if(!obj) return;
-  if(entry.action==='resize'){
-    const ud = obj.userData;
-    if(ud && ud.type==='room') resizeRoom(obj, entry.to, entry.axis);
-    else if(ud && (ud.type==='tray'||ud.libType==='tray')) resizeTray(obj, entry.to, entry.axis);
-  } else if(entry.action==='material') applyPreset(obj, entry.preset);
-}
-
-function getIntersect(pos){
-  mouse.x = (pos.clientX / window.innerWidth)*2 -1;
-  mouse.y = -(pos.clientY / window.innerHeight)*2 +1;
-  raycaster.setFromCamera(mouse, activeCam);
-  return raycaster.intersectObjects(scene.children.filter(o=>o.userData&&o.userData.type), true);
-}
-function getGroundPos(event){
-  mouse.x = (event.clientX / window.innerWidth)*2 -1;
-  mouse.y = -(event.clientY / window.innerHeight)*2 +1;
-  raycaster.setFromCamera(mouse, activeCam);
-  const hit = raycaster.intersectObject(ground);
-  if(hit.length) return hit[0].point;
-  return null;
-}
-
-renderer.domElement.addEventListener('pointerdown', ev=>{
-  if(ev.button!==0) return;
-  const hits = getIntersect(ev);
-  if(hits.length){
-    let obj = hits[0].object;
-    while(obj.parent && obj.parent!==scene) obj = obj.parent;
-    if(ev.shiftKey){
-      if(multiSelect.includes(obj)){ multiSelect=multiSelect.filter(o=>o!==obj); obj.material&&obj.material.emissive.setHex(0x000000); }
-      else { multiSelect.push(obj); obj.material&&obj.material.emissive.setHex(0x222222); }
-      selected = multiSelect[0];
-      noSelect.style.display = selected?'none':'';
-      if(selected) buildGUI(selected);
-    } else selectObject(obj);
-    const gp = getGroundPos(ev);
-    if(gp) offset.copy((selected||obj).position).sub(gp);
-    dragObj = obj;
-  } else if(!ev.shiftKey) selectObject(null);
-});
-
-window.addEventListener('pointermove', ev=>{
-  if(!dragObj) return;
-  const gp = getGroundPos(ev);
-  if(!gp) return;
-  gp.add(offset);
-  if(snapEnabled){
-    const gs = parseFloat(gridSize);
-    gp.x = Math.round(gp.x/gs)*gs;
-    gp.z = Math.round(gp.z/gs)*gs;
-    gp.y = Math.round(gp.y/gs)*gs;
-  }
-  dragObj.position.copy(gp);
-  multiSelect.forEach(o=>{ if(o!==dragObj) o.position.copy(gp); });
-  if(folder) folder.controllers.forEach(c=>c.updateDisplay());
-});
-
-window.addEventListener('pointerup', ()=>{ dragObj = null; });
-
-document.getElementById('btnUndo').onclick = undo;
-document.getElementById('btnRedo').onclick = redo;
-document.getElementById('btnAddRoom').onclick = ()=>{
-  const type = prompt('Room type? compost / lab / incubation / fruiting','compost');
-  if(roomDefaults[type]) addRoom(type);
-};
-document.getElementById('btnAddTray').onclick = ()=> addLibraryItem('tray');
-document.getElementById('btnReset').onclick = ()=>{
-  scene.traverse(c=>{ if(c.userData&&c.userData.type) scene.remove(c); });
-  objects.clear(); multiSelect=[]; selected=null;
-  addRoom('compost',0,0,0);
-  addRoom('lab',6,0,0);
-  addRoom('incubation',0,0,6);
-  addRoom('fruiting',6,0,6);
-  addRoom('fruiting',10,0,6);
-  addRoom('room',14,0,0);
-  pushHistory({action:'reset'});
-};
-document.getElementById('btnExport').onclick = ()=>{
-  const data = [];
-  objects.forEach((v,uuid)=>{
-    const obj = scene.getObjectByProperty('uuid',uuid);
-    if(!obj) return;
-    data.push({ uuid, userData:{...v}, position:obj.position.toArray(), rotation:obj.rotation.toArray(), scale:obj.scale.toArray() });
+  // Table (center-left)
+  const tableW=1.2, tableD=0.8, tableH=0.75;
+  const tableX=pos.x+1.2, tableZ=cz;
+  const tableLegGeo=new THREE.BoxGeometry(0.08,tableH-0.05,0.08);
+  const tableLegMat=new THREE.MeshPhongMaterial({color:0x5d4037});
+  [[-1,-1],[-1,1],[1,-1],[1,1]].forEach(([sx,sz])=>{
+    const leg=new THREE.Mesh(tableLegGeo,tableLegMat);
+    leg.position.set(tableX+sx*(tableW/2-0.1), (tableH-0.05)/2, tableZ+sz*(tableD/2-0.1));
+    leg.castShadow=true; scene.add(leg);
   });
-  localStorage.setItem('farmLayout', JSON.stringify(data));
-  alert('Layout saved to localStorage');
-};
-document.getElementById('btnImport').onclick = ()=>{
-  const raw = localStorage.getItem('farmLayout');
-  if(!raw) return alert('No saved layout');
-  const arr = JSON.parse(raw);
-  scene.traverse(c=>{ if(c.userData&&c.userData.type) scene.remove(c); });
-  objects.clear(); multiSelect=[]; selected=null;
-  arr.forEach(item=>{
-    const grp = new THREE.Group();
-    grp.uuid = item.uuid;
-    grp.userData = item.userData;
-    grp.position.fromArray(item.position);
-    grp.rotation.fromArray(item.rotation);
-    grp.scale.fromArray(item.scale);
-    if(item.userData.type==='room'){
-      const {w,d,h,roomType} = item.userData;
-      const def = roomDefaults[roomType];
-      const geo = new THREE.BoxGeometry(w, h, d);
-      const mat = new THREE.MeshPhongMaterial({color:def.color, transparent:true, opacity:0.5, side:THREE.DoubleSide});
-      const mesh = new THREE.Mesh(geo, mat);
-      mesh.castShadow = true; mesh.receiveShadow = true;
-      const wire = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), new THREE.MeshBasicMaterial({color:0x00ffff, wireframe:true, transparent:true, opacity:0.3}));
-      const {obj:labelObj} = createLabel(item.userData.label, w, h);
-      grp.add(mesh, wire, labelObj);
-      const trayGroup = new THREE.Group();
-      trayGroup.userData = {type:'trayGroup', parentRoom:grp.uuid};
-      const trayW = w * 0.8 / 5;
-      const trayD = d * 0.8;
-      const trayH = h * 0.2;
-      const startX = grp.position.x - w/2 + trayW/2 + 0.1;
-      const startZ = grp.position.z - d/2 + trayD/2 + 0.1;
-      for(let i=0;i<5;i++){
-        const tray = createTray(trayW, trayD, trayH);
-        tray.position.set(startX + i*(trayW+0.05), trayH/2, startZ);
-        tray.castShadow = true; tray.receiveShadow = true;
-        trayGroup.add(tray);
-        objects.set(tray.uuid, {type:'tray', libType:'tray', w:trayW, d:trayD, h:trayH, parentRoom:grp.uuid});
-      }
-      grp.add(trayGroup);
-    } else {
-      const ud = item.userData;
-      const geo = new THREE.BoxGeometry(ud.w||1, ud.h||1, ud.d||1);
-      const mat = new THREE.MeshPhongMaterial({color:0x888888});
-      const mesh = new THREE.Mesh(geo, mat);
-      mesh.castShadow = true;
-      grp.add(mesh);
-    }
-    scene.add(grp);
-    objects.set(grp.uuid, grp.userData);
+  const tableTop=new THREE.Mesh(
+    new THREE.BoxGeometry(tableW,0.08,tableD),
+    new THREE.MeshPhongMaterial({color:0x8d6e63})
+  );
+  tableTop.position.set(tableX, tableH, tableZ);
+  tableTop.castShadow=true; scene.add(tableTop);
+  const tableLabel=makeLabel('🔬 Table',0.25);
+  tableLabel.position.set(tableX, tableH+0.15, tableZ);
+  scene.add(tableLabel);
+
+  // Humidifier (front-right corner)
+  const humX=pos.x+w-0.8, humZ=pos.z+d-0.8;
+  const humidifier=new THREE.Mesh(
+    new THREE.CylinderGeometry(0.2,0.2,0.5,16),
+    bpMat(0x29b6f6,0.4)
+  );
+  humidifier.position.set(humX, 0.25, humZ);
+  scene.add(humidifier);
+  const humLabel=makeLabel('💧',0.22);
+  humLabel.position.set(humX, 0.6, humZ);
+  scene.add(humLabel);
+
+  // Fan (ceiling)
+  const fanX=cx, fanZ=cz;
+  const fan=new THREE.Mesh(
+    new THREE.CircleGeometry(0.5,16),
+    bpMat(0x90a4ae,0.35)
+  );
+  fan.rotation.x=-Math.PI/2;
+  fan.position.set(fanX, h-0.15, fanZ);
+  scene.add(fan);
+  const fanLabel=makeLabel('🌀',0.22);
+  fanLabel.position.set(fanX, h+0.1, fanZ);
+  scene.add(fanLabel);
+
+  // Door (front wall, left side)
+  const doorW=1.0, doorH=2.0, doorD=0.08;
+  const doorX=pos.x+0.1+doorW/2, doorZ=pos.z;
+  const door=new THREE.Mesh(
+    new THREE.BoxGeometry(doorW, doorH, doorD),
+    bpMat(0xbcaaa4,0.3)
+  );
+  door.position.set(doorX, doorH/2, doorZ);
+  scene.add(door);
+  const doorWire=new THREE.Mesh(new THREE.BoxGeometry(doorW,doorH,doorD),bpWire(0xbbdefb,0.6));
+  doorWire.position.copy(door.position);
+  scene.add(doorWire);
+  const doorLabel=makeLabel('🚪',0.25);
+  doorLabel.position.set(doorX, doorH+0.1, doorZ-0.3);
+  scene.add(doorLabel);
+
+  // Window (back wall)
+  const winW=1.4, winH=1.2, winD=0.08;
+  const winX=cx, winZ=pos.z+d;
+  const windowMesh=new THREE.Mesh(
+    new THREE.BoxGeometry(winW, winH, winD),
+    new THREE.MeshPhongMaterial({color:0xbbdefb, transparent:true, opacity:0.25, side:THREE.DoubleSide})
+  );
+  windowMesh.position.set(winX, winH/2+0.3, winZ);
+  scene.add(windowMesh);
+  const winWire=new THREE.Mesh(new THREE.BoxGeometry(winW,winH,winD),bpWire(0x81d4fa,0.4));
+  winWire.position.copy(windowMesh.position);
+  scene.add(winWire);
+
+  // Lighting fixture (ceiling)
+  const lightY=h-0.05;
+  const lightFixture=new THREE.PointLight(0xffeedd,0.8,8);
+  lightFixture.position.set(cx, lightY, cz);
+  scene.add(lightFixture);
+  const lightHelper=new THREE.Mesh(new THREE.SphereGeometry(0.08,8,8),new THREE.MeshBasicMaterial({color:0xffffaa}));
+  lightHelper.position.set(cx, lightY, cz);
+  scene.add(lightHelper);
+
+  // --- Dimension annotations ---
+  // Width dimension (along X)
+  addDimensionLine(
+    new THREE.Vector3(pos.x, h+0.5, pos.z+d+0.3),
+    new THREE.Vector3(pos.x+w, h+0.5, pos.z+d+0.3),
+    `${w}m`, color
+  );
+  // Depth dimension (along Z)
+  addDimensionLine(
+    new THREE.Vector3(pos.x-0.3, h+0.5, pos.z),
+    new THREE.Vector3(pos.x-0.3, h+0.5, pos.z+d),
+    `${d}m`, color
+  );
+  // Height annotation
+  const hLabel=makeLabel(`${h}m`,0.22);
+  hLabel.position.set(pos.x+w+0.3, h/2, pos.z);
+  scene.add(hLabel);
+
+  // Room name label
+  const nameLabel=makeLabel(id, 0.45);
+  nameLabel.position.set(cx, h+0.7, cz);
+  scene.add(nameLabel);
+
+  roomMeshes.push({solid,wire,floor,room:rm});
+});
+
+// Corridor / walkway lines (dashed)
+function addCorridor(){
+  const corridorY=0.03;
+  // Main corridor between rooms (along Z at x=3.5)
+  const corridorGeom=new THREE.BufferGeometry().setFromPoints([
+    new THREE.Vector3(5.5,corridorY,0),
+    new THREE.Vector3(5.5,corridorY,10)
+  ]);
+  const corridorMat=new THREE.LineDashedMaterial({color:0x4466aa, dashSize:0.4, gapSize:0.2, transparent:true, opacity:0.5});
+  const corridor=new THREE.Line(corridorGeom,corridorMat);
+  corridor.computeLineDistances();
+  scene.add(corridor);
+
+  // Horizontal corridor (along X at z=3)
+  const hCorrGeom=new THREE.BufferGeometry().setFromPoints([
+    new THREE.Vector3(0,corridorY,3),
+    new THREE.Vector3(5,corridorY,3)
+  ]);
+  const hCorridor=new THREE.Line(hCorrGeom,corridorMat.clone());
+  hCorridor.computeLineDistances();
+  scene.add(hCorridor);
+
+  // Horizontal corridor (along X at z=8)
+  const hCorrGeom2=new THREE.BufferGeometry().setFromPoints([
+    new THREE.Vector3(0,corridorY,8),
+    new THREE.Vector3(5,corridorY,8)
+  ]);
+  const hCorridor2=new THREE.Line(hCorrGeom2,corridorMat.clone());
+  hCorridor2.computeLineDistances();
+  scene.add(hCorridor2);
+}
+addCorridor();
+
+// Scale bar
+(function(){
+  const sStart=new THREE.Vector3(-4,0.02,9);
+  const sEnd=new THREE.Vector3(-1,0.02,9);
+  const geom=new THREE.BufferGeometry().setFromPoints([sStart,sEnd]);
+  const mat=new THREE.LineBasicMaterial({color:0x00d2ff});
+  scene.add(new THREE.Line(geom,mat));
+  // end caps
+  [sStart,sEnd].forEach(p=>{
+    const c=new THREE.Mesh(new THREE.BoxGeometry(0.06,0.06,0.06),new THREE.MeshBasicMaterial({color:0x00d2ff}));
+    c.position.copy(p); scene.add(c);
   });
-};
-document.getElementById('btnGLTF').onclick = ()=>{
-  const exporter = new GLTFExporter();
-  const meshes = [];
-  scene.traverse(c=>{ if(c.isMesh) meshes.push(c); });
-  exporter.parse(meshes, gltf =>{
-    const output = JSON.stringify(gltf,null,2);
-    const blob = new Blob([output],{type:'application/json'});
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = 'farm.gltf';
-    a.click();
-  },'binary');
-};
-document.getElementById('chkSnap').addEventListener('change', e=>{ snapEnabled = e.target.checked; });
-document.getElementById('gridSize').addEventListener('change', e=>{ gridSize = parseFloat(e.target.value); });
-document.getElementById('btnTop').onclick = ()=>{
-  activeCam = orthoCam; controls.object = orthoCam;
-  orthoCam.position.set(0,30,0); orthoCam.lookAt(0,0,0);
-  saveCameraState();
-};
-document.getElementById('btn3D').onclick = ()=>{
-  activeCam = perspCam; controls.object = perspCam;
-  perspCam.position.set(12,12,12); perspCam.lookAt(0,0,0);
-  saveCameraState();
-};
-document.getElementById('btnToggleSidebar').onclick = ()=>{
-  document.getElementById('left').classList.toggle('collapsed');
-};
+  const barLabel=makeLabel('3m',0.35);
+  barLabel.position.set(-2.5,0.06,9.2);
+  scene.add(barLabel);
+})();
 
-document.querySelectorAll('.lib-item[data-lib]').forEach(el=>{
-  el.addEventListener('click', ()=> addLibraryItem(el.dataset.lib));
-});
-document.querySelectorAll('.lib-item[data-room]').forEach(el=>{
-  el.addEventListener('click', ()=> addRoom(el.dataset.room));
-});
+// Compass indicator
+(function(){
+  const compassGroup=new THREE.Group();
+  compassGroup.position.set(12,0.1,12);
+  // N arrow
+  const nGeom=new THREE.BufferGeometry().setFromPoints([
+    new THREE.Vector3(0,0,0), new THREE.Vector3(0,0,-1.5)
+  ]);
+  const nMat=new THREE.LineBasicMaterial({color:0xff4444});
+  compassGroup.add(new THREE.Line(nGeom,nMat));
+  // S arrow
+  const sGeom=new THREE.BufferGeometry().setFromPoints([
+    new THREE.Vector3(0,0,0), new THREE.Vector3(0,0,1.5)
+  ]);
+  const sMat=new THREE.LineBasicMaterial({color:0x44ff44});
+  compassGroup.add(new THREE.Line(sGeom,sMat));
+  // E arrow
+  const eGeom=new THREE.BufferGeometry().setFromPoints([
+    new THREE.Vector3(0,0,0), new THREE.Vector3(1.5,0,0)
+  ]);
+  const eMat=new THREE.LineBasicMaterial({color:0x4444ff});
+  compassGroup.add(new THREE.Line(eGeom,eMat));
+  // W arrow
+  const wGeom=new THREE.BufferGeometry().setFromPoints([
+    new THREE.Vector3(0,0,0), new THREE.Vector3(-1.5,0,0)
+  ]);
+  const wMat=new THREE.LineBasicMaterial({color:0xffff00});
+  compassGroup.add(new THREE.Line(wGeom,wMat));
+  // Labels
+  const addText=(txt,px,py,pz,col)=>{
+    const d=document.createElement('div');
+    d.textContent=txt;
+    d.style.cssText=`color:${col};font-size:12px;font-weight:bold;font-family:monospace;background:none`;
+    const o=new CSS2DObject(d);
+    o.position.set(px,py,pz);
+    compassGroup.add(o);
+  };
+  addText('N',0,0.3,-1.8,'#ff4444');
+  addText('S',0,0.3,1.8,'#44ff44');
+  addText('E',1.8,0.3,0,'#4444ff');
+  addText('W',-1.8,0.3,0,'#ffff00');
+  scene.add(compassGroup);
+})();
 
-function saveCameraState(){
-  localStorage.setItem('camType', activeCam===perspCam?'persp':'ortho');
-  localStorage.setItem('camPos', JSON.stringify(activeCam.position.toArray()));
-  localStorage.setItem('camTarget', JSON.stringify(controls.target.toArray()));
+// --- Camera presets ---
+function setCamera(cam){
+  activeCam=cam;
+  controls.object=cam;
+  cam.lookAt(0,0,0);
+  controls.update();
 }
-function loadCameraState(){
-  const cam = localStorage.getItem('camType');
-  const pos = JSON.parse(localStorage.getItem('camPos'));
-  const tgt = JSON.parse(localStorage.getItem('camTarget'));
-  if(cam && pos && tgt){
-    if(cam==='persp'){ perspCam.position.fromArray(pos); controls.target.fromArray(tgt); activeCam=perspCam; controls.object=perspCam; }
-    else { orthoCam.position.fromArray(pos); orthoCam.lookAt(tgt[0],tgt[1],tgt[2]); controls.target.fromArray(tgt); activeCam=orthoCam; controls.object=orthoCam; }
+
+document.getElementById('btnTop').onclick=()=>{
+  setCamera(orthoCam);
+  orthoCam.position.set(0,35,0);
+  controls.target.set(0,0,0);
+};
+document.getElementById('btnIso').onclick=()=>{
+  setCamera(isoCam);
+  isoCam.position.set(18,14,18);
+};
+document.getElementById('btnWalk').onclick=()=>{
+  setCamera(perspCam);
+  perspCam.position.set(0,3,12);
+  perspCam.lookAt(0,0,0);
+};
+document.getElementById('btnReset').onclick=()=>{
+  setCamera(orthoCam);
+  orthoCam.position.set(0,30,0);
+  controls.target.set(0,0,0);
+  controls.reset();
+};
+
+// Hover tooltips
+const tooltip=document.getElementById('tooltip');
+const raycaster=new THREE.Raycaster();
+const mouse=new THREE.Vector2();
+let hoveredObject=null;
+
+renderer.domElement.addEventListener('mousemove',ev=>{
+  mouse.x=(ev.clientX/window.innerWidth)*2-1;
+  mouse.y=-(ev.clientY/window.innerHeight)*2+1;
+  raycaster.setFromCamera(mouse,activeCam);
+  const intersects=raycaster.intersectObjects(scene.children.filter(o=>o.userData&&o.userData.tip),true);
+  if(intersects.length){
+    const obj=intersects[0].object;
+    tooltip.style.display='block';
+    tooltip.style.left=(ev.clientX+12)+'px';
+    tooltip.style.top=(ev.clientY-30)+'px';
+    tooltip.textContent=obj.userData.tip;
+    hoveredObject=obj;
+  } else {
+    tooltip.style.display='none';
+    hoveredObject=null;
   }
-}
-window.addEventListener('resize', ()=>{
+});
+
+// Add tooltips to rooms
+rooms.forEach((rm,i)=>{
+  roomMeshes[i].solid.userData={tip:
+    `<b>${rm.id}</b><br>${rm.w}m × ${rm.d}m × ${rm.h}m<br>Type: ${rm.type}`
+  };
+});
+
+// Responsive
+window.addEventListener('resize',()=>{
   const w=window.innerWidth, h=window.innerHeight;
   perspCam.aspect=w/h; perspCam.updateProjectionMatrix();
-  const s=15;
+  const s=20;
   orthoCam.left=-s; orthoCam.right=s; orthoCam.top=s; orthoCam.bottom=-s;
   orthoCam.updateProjectionMatrix();
-  renderer.setSize(w,h); labelRenderer.setSize(w,h);
+  renderer.setSize(w,h);
+  labelRenderer.setSize(w,h);
 });
-loadCameraState();
 
+// Animate
 function animate(){
   requestAnimationFrame(animate);
   controls.update();
-  renderer.render(scene, activeCam);
-  labelRenderer.render(scene, activeCam);
+  renderer.render(scene,activeCam);
+  labelRenderer.render(scene,activeCam);
 }
 animate();
 </script>
